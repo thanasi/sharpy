@@ -1,9 +1,11 @@
 #!/usr/bin/env python
+from __future__ import division
 import sys
 from numpy import *
 from vtk import *
 
-fn = "../STL/TetFrameFINAL.STL"
+fn = "../STL/dolo.STL"
+N = 10000
 
 if __name__ == "__main__":
     
@@ -22,7 +24,8 @@ if __name__ == "__main__":
     ## set up points to check
     points = vtkPoints()
     
-    for i in range(100):
+    print 'sampling ' + str(N) + ' points'
+    for i in range(N):
         x = random.uniform(low=bounds[0], high=bounds[1])
         y = random.uniform(low=bounds[2], high=bounds[3])
         z = random.uniform(low=bounds[4], high=bounds[5])
@@ -45,12 +48,13 @@ if __name__ == "__main__":
     
     for i in range(checkPoints.GetNumberOfPoints()):
         inout.append(pointChecker.IsInside(i))
-        print i, inout[-1]
+        # print i, inout[-1]
         if inout[-1]:
             inPoints0.InsertNextPoint(points.GetPoint(i))
         else:
             outPoints0.InsertNextPoint(points.GetPoint(i))
             
+    print 'Volume Fraction of Bounding Box:', sum(inout) / N
     inPoints = vtkPolyData()
     inPoints.SetPoints(inPoints0)
     outPoints = vtkPolyData()
@@ -78,6 +82,7 @@ if __name__ == "__main__":
     inpointsActor.SetMapper(inpointsMapper)
     inpointsActor.GetProperty().SetPointSize(5)
     inpointsActor.GetProperty().SetColor(0, 0, 1)
+    inpointsActor.GetProperty().SetOpacity(0.75)    
     
     outverteces = vtkVertexGlyphFilter()
     outverteces.AddInput(outPoints)
@@ -90,6 +95,7 @@ if __name__ == "__main__":
     outpointsActor.SetMapper(outpointsMapper)
     outpointsActor.GetProperty().SetPointSize(5)
     outpointsActor.GetProperty().SetColor(1, 0, 0)
+    outpointsActor.GetProperty().SetOpacity(0.05)    
     
     ## renderer, render window, interactor
     renderer = vtkRenderer()
