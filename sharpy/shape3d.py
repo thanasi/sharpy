@@ -127,7 +127,7 @@ class Shape3D(object):
         
         inbool = self.is_inside(pc,save=False)
         
-        self.PointCloud = pc[inbool]
+        self.PointCloud = pc[inbool==1]
                 
     def calc_InertiaTensor(self):
         """ Calculate moment of Inertia Tensor """
@@ -156,8 +156,8 @@ class Shape3D(object):
         
         eigval, eigvec = zip(*eigsys)
         
-        self._eigval = eigval
-        self._eigvec = eigsys
+        self._eigval = eigval[::-1]
+        self._eigvec = eigsys[::-1]
         
         print I
         print eigval
