@@ -7,7 +7,9 @@
 ## 
 ##############################
 import os
+from itertools import izip
 import numpy as np
+from numpy import linalg as LA
 import vtk
 
 ## tolerance for point merging
@@ -47,6 +49,12 @@ class Shape3D(object):
         self._aligned = False
         self._cleaned = False
         self._pointch = False
+        self._pointcloudgen = False
+        
+        self.Surf = None
+        self.InertiaTensor = None
+        self.PointCloud = None
+        self.CoM = None
         
         ext = np.char.lower(os.path.splitext(fn)[-1])
         
@@ -68,8 +76,8 @@ class Shape3D(object):
         self._reader.Update()
         
         ## set up surface
-        self.surf = self._reader.GetOutput()
-        self._bounds = self.surf.GetBounds()
+        self.Surf = self._reader.GetOutput()
+        self._bounds = self.Surf.GetBounds()
         
         self._loaded = True
         
@@ -78,15 +86,15 @@ class Shape3D(object):
         
         scrubber = vtk.vtkCleanPolyData()
         scrubber.SetTolerance(TOL)
-        scrubber.SetInput(self.surf)
+        scrubber.SetInput(self.Surf)
         scrubber.Update()
         
-        N1 = self.surf.GetNumberOfPoints()
+        N1 = self.Surf.GetNumberOfPoints()
         N2 = scrubber.GetOutput().GetNumberOfPoints()
         
         if N2<N1:
             print "Removed %d duplicate points" % (N1-N2)
-            self.surf = scrubber.GetOutput()
+            self.Surf = scrubber.GetOutput()
         else:
             print "No duplicate points within tolerance"
 
@@ -95,16 +103,68 @@ class Shape3D(object):
     def _align_axes(self):
         """ 
         Align the imported surface according to the following rules:
-            - x axis is minor principal axis
-            - y axis is middle axis
-            - z axis is major principal axis
+            - move center of mass to (0,0,0)
+            - x axis: minor axis of the moment of inertia tensor
+            - y axis: middle axis
+            - z axis: major  axis
         
         """
         
+        # 
+        
         # self._aligned = True
         pass
+    
+    
+    def generate_pointcloud(self, N=1000000):
+        """ Build an N-point pointcloud representation of the surface """
+
+        x = np.random.uniform(low=self._bounds[0], high=self._bounds[1], size=N)
+        y = np.random.uniform(low=self._bounds[2], high=self._bounds[3], size=N)
+        z = np.random.uniform(low=self._bounds[4], high=self._bounds[5], size=N)
         
-    def is_inside(self,points):
+        pc = np.array([x,y,z]).T
+        
+        inbool = self.is_inside(pc,save=False)
+        
+        self.PointCloud = pc[inbool]
+                
+    def calc_InertiaTensor(self):
+        """ Calculate moment of Inertia Tensor """
+        
+        self.CoM = self.PointCloud.mean(0)
+        
+        pc = self.PointCloud.copy() - self.CoM
+        
+        ## moment of inertia tensor
+        I = np.ones((3,3))
+        
+        gr = np.mgrid[:3,:3]
+        delta = np.eye(3)
+        
+        for p in pc:
+            crossmat = np.outer(p,p)
+            I += delta * np.sum(p**2) - crossmat
+
+        self.InertiaTensor = I
+                    
+        # calculate and sort eigenvectors
+        eigval, eigvec = LA.eigh(I)
+        
+        eigsys = zip(eigval, eigvec.T)
+        eigsys.sort(key = lambda x: x[0])
+        
+        eigval, eigvec = zip(*eigsys)
+        
+        self._eigval = eigval
+        self._eigvec = eigsys
+        
+        print I
+        print eigval
+        print eigvec       
+        
+    
+    def is_inside(self,points,save=True):
         """ Check if given points lie inside the surface """
         
         points = np.array(points)
@@ -116,17 +176,17 @@ class Shape3D(object):
         n = points.shape[0]
         
         ## set up points to check
-        self.vpoints = vtk.vtkPoints()
-        for i in range(n):
-            self.vpoints.InsertNextPoint(points[i])
+        vpoints = vtk.vtkPoints()
+        for p in points:
+            vpoints.InsertNextPoint(p)
         
         checkPoints = vtk.vtkPolyData()
-        checkPoints.SetPoints(self.vpoints)
+        checkPoints.SetPoints(vpoints)
         
         ## set up point checking object
         pointChecker = vtk.vtkSelectEnclosedPoints()
         pointChecker.SetInput(checkPoints)
-        pointChecker.SetSurface(self.surf)
+        pointChecker.SetSurface(self.Surf)
         pointChecker.Update()
         
         ## check the status for each point
@@ -138,16 +198,18 @@ class Shape3D(object):
             inout.append(pointChecker.IsInside(i))
             # print i, inout[-1]
             if inout[-1]:
-                inPoints0.InsertNextPoint(self.vpoints.GetPoint(i))
+                inPoints0.InsertNextPoint(vpoints.GetPoint(i))
             else:
-                outPoints0.InsertNextPoint(self.vpoints.GetPoint(i))
+                outPoints0.InsertNextPoint(vpoints.GetPoint(i))
         
-        self._inPoints = vtk.vtkPolyData()
-        self._inPoints.SetPoints(inPoints0)
-        self._outPoints = vtk.vtkPolyData()
-        self._outPoints.SetPoints(outPoints0)
+        if save:
+            self._vpoints = vpoints
+            self._inPoints = vtk.vtkPolyData()
+            self._inPoints.SetPoints(inPoints0)
+            self._outPoints = vtk.vtkPolyData()
+            self._outPoints.SetPoints(outPoints0)
         
-        self._pointch = True
+            self._pointch = True
         
         if n==1:
             return inout[0]
