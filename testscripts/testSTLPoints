@@ -3,7 +3,7 @@ import sys
 from numpy import *
 from vtk import *
 
-fn = "../STL/TrTet.STL"
+fn = "../STL/TetFrameFINAL.STL"
 
 if __name__ == "__main__":
     
@@ -14,15 +14,19 @@ if __name__ == "__main__":
     reader.SetFileName(fn)
     reader.Update()
     
-    shape = reader.GetOutput()
-    print shape.GetNumberOfPoints(), "points in STL"
+    shape3d = reader.GetOutput()
+    print shape3d.GetNumberOfPoints(), "points in STL"
+    
+    bounds = shape3d.GetBounds()
     
     ## set up points to check
     points = vtkPoints()
-    points.InsertNextPoint([0,0,0])
-    points.InsertNextPoint([.5,.5,.5])
-    points.InsertNextPoint([1,1,1])
-    points.InsertNextPoint([2,2,2])
+    
+    for i in range(100):
+        x = random.uniform(low=bounds[0], high=bounds[1])
+        y = random.uniform(low=bounds[2], high=bounds[3])
+        z = random.uniform(low=bounds[4], high=bounds[5])
+        points.InsertNextPoint([x,y,z])
     
     checkPoints = vtkPolyData()
     checkPoints.SetPoints(points)
@@ -30,7 +34,7 @@ if __name__ == "__main__":
     ## set up vtk point checker
     pointChecker = vtkSelectEnclosedPoints()
     pointChecker.SetInput(checkPoints)
-    pointChecker.SetSurface(shape)
+    pointChecker.SetSurface(shape3d)
     pointChecker.Update()
     
     ## output
