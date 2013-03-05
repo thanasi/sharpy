@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import sys
 from numpy import *
 from vtk import *
 
@@ -6,15 +7,17 @@ fn = "../STL/TrTet.STL"
 
 if __name__ == "__main__":
     
-    ## is the point inside?
+    ####### is the point inside? #######
+    
+    ## read in STL
     reader = vtkSTLReader()
     reader.SetFileName(fn)
     reader.Update()
     
     shape = reader.GetOutput()
-    print shape.GetNumberOfPoints()
+    print shape.GetNumberOfPoints(), "points in STL"
     
-    
+    ## set up points to check
     points = vtkPoints()
     points.InsertNextPoint([0,0,0])
     points.InsertNextPoint([.5,.5,.5])
@@ -24,13 +27,81 @@ if __name__ == "__main__":
     checkPoints = vtkPolyData()
     checkPoints.SetPoints(points)
     
+    ## set up vtk point checker
     pointChecker = vtkSelectEnclosedPoints()
     pointChecker.SetInput(checkPoints)
     pointChecker.SetSurface(shape)
     pointChecker.Update()
     
+    ## output
+    inout = []
     
-    for i in range(4):
-        print i, pointChecker.IsInside(i)
+    inPoints0 = vtkPoints()
+    outPoints0 = vtkPoints()
+    
+    for i in range(checkPoints.GetNumberOfPoints()):
+        inout.append(pointChecker.IsInside(i))
+        print i, inout[-1]
+        if inout[-1]:
+            inPoints0.InsertNextPoint(points.GetPoint(i))
+        else:
+            outPoints0.InsertNextPoint(points.GetPoint(i))
+            
+    inPoints = vtkPolyData()
+    inPoints.SetPoints(inPoints0)
+    outPoints = vtkPolyData()
+    outPoints.SetPoints(outPoints0)
+    
+    ####### rendering to verify #######
+    
+    ## shape mapper, actor
+    shapeMapper = vtkPolyDataMapper()
+    shapeMapper.SetInputConnection(reader.GetOutputPort())
+
+    shapeActor = vtkActor()
+    shapeActor.SetMapper(shapeMapper)
+    shapeActor.GetProperty().SetOpacity(0.5)
+    
+    ## point mappers, actors
+    inverteces = vtkVertexGlyphFilter()
+    inverteces.AddInput(inPoints)
+    inverteces.Update()
+    
+    inpointsMapper = vtkPolyDataMapper()
+    inpointsMapper.SetInputConnection(inverteces.GetOutputPort())
+    
+    inpointsActor = vtkActor()
+    inpointsActor.SetMapper(inpointsMapper)
+    inpointsActor.GetProperty().SetPointSize(5)
+    inpointsActor.GetProperty().SetColor(0, 0, 1)
+    
+    outverteces = vtkVertexGlyphFilter()
+    outverteces.AddInput(outPoints)
+    outverteces.Update()
+    
+    outpointsMapper = vtkPolyDataMapper()
+    outpointsMapper.SetInputConnection(outverteces.GetOutputPort())
+    
+    outpointsActor = vtkActor()
+    outpointsActor.SetMapper(outpointsMapper)
+    outpointsActor.GetProperty().SetPointSize(5)
+    outpointsActor.GetProperty().SetColor(1, 0, 0)
+    
+    ## renderer, render window, interactor
+    renderer = vtkRenderer()
+    renderWindow = vtkRenderWindow()
+    interactor = vtkRenderWindowInteractor()
+    
+    renderWindow.AddRenderer(renderer)
+    interactor.SetRenderWindow(renderWindow)
+    
+    ## add actors
+    renderer.AddActor(shapeActor)
+    renderer.AddActor(inpointsActor)
+    renderer.AddActor(outpointsActor)
+    renderer.SetBackground(0,0,0)
+    
+    renderWindow.SetWindowName("testSTLPoints")
+    renderWindow.Render()
+    interactor.Start();
         
-    ## rendering to verify
