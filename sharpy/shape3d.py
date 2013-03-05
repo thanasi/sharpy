@@ -83,7 +83,7 @@ class Shape3D(object):
         N2 = scrubber.GetOutput().GetNumberOfPoints()
         
         if N2<N1:
-            ## print "Removed %d duplicate points" % (N1-N2)
+            print "Removed %d duplicate points" % (N1-N2)
             self.surf = scrubber.GetOutput()
         else:
             print "No duplicate points within tolerance"
