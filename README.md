@@ -1,4 +1,4 @@
-sharpy 0.1
+sharpy 0.2
 ==================
 
 Expand a 3D surface as spherical harmonics Ylm using Monte Carlo integration
@@ -15,7 +15,7 @@ Expand a 3D surface as spherical harmonics Ylm using Monte Carlo integration
 1. ~~Import STL~~ (testscripts/testSTLPoints)
 2. ~~Check if a point is contained within STL~~ (testscripts/testSTLPoints)
 3. ~~Visualize points + color based on if in or out~~ (testscripts/testSTLPoints)
-4. Implement as library
+4. ~~Implement as library + class~~ (sharpy/shape3d.py, testscripts/testSTLPoints2)
 6. STL Registration along principal axes:
 	- x = minor axis
 	- y = middle
