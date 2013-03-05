@@ -24,17 +24,19 @@ class Shape3D(object):
         object that holds a 3D surface and can check
         if a point is enclosed by the surface or not.
         
-    Shape3D(filename) : load surface from filename
-                        removes duplicate points within a tolerance of 1e-4
-        
-                        Supported file types:
-                            --STL
+    Shape3D(filename)
+        load surface from filename
+        removes duplicate points within a tolerance of 1e-4
+        Supported file types:
+            --STL
     
-    Shape3D.is_inside(points) : check if points in list are inside surface
-                                will accept single points or a list
-                                returns single binary value or an array of them
+    Shape3D.is_inside(points)
+        check if points in list are inside surface
+        will accept single points or a list
+        returns single binary value or an array of them
         
-    Shape3D.visualize() : visualize surface and points checked
+    Shape3D.visualize()
+        visualize surface and points checked
         
     """
     
