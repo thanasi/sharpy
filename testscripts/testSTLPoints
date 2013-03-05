@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+from numpy import *
+from vtk import *
+
+fn = "STL/TrTet.STL"
+
+if __name__ == "__main__":
+    
+    ## is the point inside?
+    reader = vtkSTLReader()
+    reader.SetFileName(fn)
+    reader.Update()
+    
+    shape = reader.GetOutput()
+    print shape.GetNumberOfPoints()
+    
+    
+    points = vtkPoints()
+    points.InsertNextPoint([0,0,0])
+    points.InsertNextPoint([.5,.5,.5])
+    points.InsertNextPoint([1,1,1])
+    points.InsertNextPoint([2,2,2])
+    
+    checkPoints = vtkPolyData()
+    checkPoints.SetPoints(points)
+    
+    pointChecker = vtkSelectEnclosedPoints()
+    pointChecker.SetInput(checkPoints)
+    pointChecker.SetSurface(shape)
+    pointChecker.Update()
+    
+    
+    for i in range(4):
+        print i, pointChecker.IsInside(i)
+        
+    ## rendering to verify
