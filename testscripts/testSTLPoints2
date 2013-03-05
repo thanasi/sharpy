@@ -12,10 +12,12 @@ from numpy import *
 
 from sharpy.shape3d import Shape3D
 
-fn = "../STL/dolo.STL"
+# fn = "../STL/dolo.STL"
 N = 1000
 
 if __name__ == "__main__":
+    
+    fn = sys.argv[1]
     
     ## Load STL
     sh = Shape3D(fn)
