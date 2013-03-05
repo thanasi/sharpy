@@ -10,6 +10,9 @@ import os
 import numpy as np
 import vtk
 
+## tolerance for point merging
+TOL = 1e-4
+
 class ImportError(Exception):
     """ Base class for surface import errors. """
     pass
@@ -22,34 +25,39 @@ class Shape3D(object):
         if a point is enclosed by the surface or not.
         
     Shape3D(filename) : load surface from filename
+                        removes duplicate points within a tolerance of 1e-4
         
-        Supported file types:
-            --STL
+                        Supported file types:
+                            --STL
     
     Shape3D.is_inside(points) : check if points in list are inside surface
-        
-        will accept single points or a list
-        returns single binary value or an array of them
+                                will accept single points or a list
+                                returns single binary value or an array of them
         
     Shape3D.visualize() : visualize surface and points checked
         
     """
     
-    def __init__(self, fn):
+    def __init__(self, fn, clean=True):
         self._filename = fn
         
         self._loaded = False
         self._aligned = False
+        self._cleaned = False
+        self._pointch = False
         
         ext = np.char.lower(os.path.splitext(fn)[-1])
         
         if ext == ".stl":
-            self.load_stl()
+            self._load_stl()
+            
+            if clean:
+                self._clean_dup_points()
             
         else:
             raise ImportError("Shape3D cannot currently load %s files" % ext)
 
-    def load_stl(self):
+    def _load_stl(self):
         """" Load an STL file into the Shape3D object """
         
         ## set up reader
@@ -60,10 +68,39 @@ class Shape3D(object):
         ## set up surface
         self.surf = self._reader.GetOutput()
         self._bounds = self.surf.GetBounds()
-                
         
         self._loaded = True
         
+    def _clean_dup_points(self):
+        """ Remove duplicate points within TOL in the loaded surface"""     
+        
+        scrubber = vtk.vtkCleanPolyData()
+        scrubber.SetTolerance(TOL)
+        scrubber.SetInput(self.surf)
+        scrubber.Update()
+        
+        N1 = self.surf.GetNumberOfPoints()
+        N2 = scrubber.GetOutput().GetNumberOfPoints()
+        
+        if N2<N1:
+            ## print "Removed %d duplicate points" % (N1-N2)
+            self.surf = scrubber.GetOutput()
+        else:
+            print "No duplicate points within tolerance"
+
+        self._cleaned = True   
+        
+    def _align_axes(self):
+        """ 
+        Align the imported surface according to the following rules:
+            - x axis is minor principal axis
+            - y axis is middle axis
+            - z axis is major principal axis
+        
+        """
+        
+        # self._aligned = True
+        pass
         
     def is_inside(self,points):
         """ Check if given points lie inside the surface """
@@ -108,23 +145,13 @@ class Shape3D(object):
         self._outPoints = vtk.vtkPolyData()
         self._outPoints.SetPoints(outPoints0)
         
+        self._pointch = True
+        
         if n==1:
             return inout[0]
         else:
             return np.array(inout)
     
-    def align_axes(self):
-        """ 
-        Align the imported surface according to the following rules:
-            - x axis is minor principal axis
-            - y axis is middle axis
-            - z axis is major principal axis
-        
-        """
-        
-        # self._aligned = True
-        pass
-        
     def visualize(self):
         """ 
             Use VTK to visualize the geometry and 
@@ -143,7 +170,7 @@ class Shape3D(object):
         useinpoints = 0
         useoutpoints = 0
         
-        if self._inPoints.GetNumberOfPoints() > 0:
+        if self._pointch and self._inPoints.GetNumberOfPoints() > 0:
             useinpoints=1
             
             inverteces = vtk.vtkVertexGlyphFilter()
@@ -159,7 +186,7 @@ class Shape3D(object):
             inpointsActor.GetProperty().SetColor(0, 0, 1)
             inpointsActor.GetProperty().SetOpacity(0.75)    
 
-        if self._outPoints.GetNumberOfPoints() > 0:
+        if self._pointch and self._outPoints.GetNumberOfPoints() > 0:
             useoutpoints=1
             
             outverteces = vtk.vtkVertexGlyphFilter()
