@@ -1,0 +1,9 @@
+#!/usr/bin/env python
+
+from sharpy.shape3d import Shape3D
+
+fn = "../STL/3.6mmJack.stl"
+
+sh = Shape3D(fn)
+
+sh.visualize(eig=True, axwidg=True)

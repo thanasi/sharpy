@@ -1,6 +1,6 @@
 ##############################
 ## 
-## sharpy.Shape3D
+## sharpy.shape3d
 ## 
 ## Author: A. Athanassiadis
 ## Date: March, 2013
@@ -11,6 +11,8 @@ from itertools import izip
 import numpy as np
 from numpy import linalg as LA
 import vtk
+
+np.set_printoptions(precision=3)
 
 ## tolerance for point merging
 TOL = 1e-4
@@ -42,19 +44,22 @@ class Shape3D(object):
         
     """
     
-    def __init__(self, fn, clean=True):
+    def __init__(self, fn, clean=True, inertia=True, align=True):
         self._filename = fn
         
         self._loaded = False
         self._aligned = False
         self._cleaned = False
-        self._pointch = False
+        self._pointchecked = False
         self._pointcloudgen = False
         
         self.Surf = None
         self.InertiaTensor = None
         self.PointCloud = None
         self.CoM = None
+        
+        self._eigval = None
+        self._eigvec = None
         
         ext = np.char.lower(os.path.splitext(fn)[-1])
         
@@ -64,6 +69,18 @@ class Shape3D(object):
             if clean:
                 self._clean_dup_points()
             
+            if inertia:
+                print 'generating point cloud '
+                self._generate_pointcloud()
+                print 'calculating moment of inertia and eigenvecs'
+                self._calc_inertia_tensor()
+                print 'calculated eigenvecs'
+                print self._eigvec
+                
+            if align:
+                print 'aligning principal moments to x,y,z axes'
+                self._align_axes()
+            
         else:
             raise ImportError("Shape3D cannot currently load %s files" % ext)
 
@@ -71,12 +88,12 @@ class Shape3D(object):
         """" Load an STL file into the Shape3D object """
         
         ## set up reader
-        self._reader = vtk.vtkSTLReader()
-        self._reader.SetFileName(self._filename)
-        self._reader.Update()
+        reader = vtk.vtkSTLReader()
+        reader.SetFileName(self._filename)
+        reader.Update()
         
         ## set up surface
-        self.Surf = self._reader.GetOutput()
+        self.Surf = reader.GetOutput()
         self._bounds = self.Surf.GetBounds()
         
         self._loaded = True
@@ -104,19 +121,42 @@ class Shape3D(object):
         """ 
         Align the imported surface according to the following rules:
             - move center of mass to (0,0,0)
-            - x axis: minor axis of the moment of inertia tensor
+            - x axis: major axis of the moment of inertia tensor
             - y axis: middle axis
-            - z axis: major  axis
+            - z axis: minor  axis
         
         """
         
-        # 
+        ## calculate rotation axes and angles
         
-        # self._aligned = True
-        pass
+        ## align major principal axis
+        
+        rax1 = np.cross(self._eigvec[0],(1,0,0))
+        rang1 = np.abs(np.arccos(self._eigvec[0][0]) * 180 / np.pi)
+        
+        txf = vtk.vtkTransform()
+        txf.PostMultiply()
+        txf.Translate(-1*self.CoM)
+        txf.RotateWXYZ(rang1,rax1)
+        
+        txfPoly = vtk.vtkTransformPolyDataFilter()
+        txfPoly.SetInput(self.Surf)
+        txfPoly.SetTransform(txf)
+        txfPoly.Update()
+        
+        self.Surf = txfPoly.GetOutput()
+        self._bounds = self.Surf.GetBounds()
     
-    
-    def generate_pointcloud(self, N=1000000):
+        print 'aligned surface. recalculating eigenvectors of MoI'
+        self._generate_pointcloud()
+        self._calc_inertia_tensor()
+        
+        print "updated eigenvectors"
+        print self._eigvec
+        
+        self._aligned = True
+        
+    def _generate_pointcloud(self, N=1e4):
         """ Build an N-point pointcloud representation of the surface """
 
         x = np.random.uniform(low=self._bounds[0], high=self._bounds[1], size=N)
@@ -128,8 +168,11 @@ class Shape3D(object):
         inbool = self.is_inside(pc,save=False)
         
         self.PointCloud = pc[inbool==1]
+        print sum(inbool)
+        
+        self._pointcloudgen = True
                 
-    def calc_InertiaTensor(self):
+    def _calc_inertia_tensor(self):
         """ Calculate moment of Inertia Tensor """
         
         self.CoM = self.PointCloud.mean(0)
@@ -137,15 +180,12 @@ class Shape3D(object):
         pc = self.PointCloud.copy() - self.CoM
         
         ## moment of inertia tensor
-        I = np.ones((3,3))
-        
         gr = np.mgrid[:3,:3]
         delta = np.eye(3)
         
-        for p in pc:
-            crossmat = np.outer(p,p)
-            I += delta * np.sum(p**2) - crossmat
-
+        f = lambda x: delta * np.sum(x**2) - np.outer(x,x)
+        I = np.array(map(f,pc)).sum(0)
+        
         self.InertiaTensor = I
                     
         # calculate and sort eigenvectors
@@ -157,17 +197,12 @@ class Shape3D(object):
         eigval, eigvec = zip(*eigsys)
         
         self._eigval = eigval[::-1]
-        self._eigvec = eigsys[::-1]
-        
-        print I
-        print eigval
-        print eigvec       
+        self._eigvec = np.array(eigvec)[::-1]
         
     
     def is_inside(self,points,save=True):
         """ Check if given points lie inside the surface """
         
-        points = np.array(points)
         if points.ndim==1:
             points = np.array([points]) 
         
@@ -177,8 +212,7 @@ class Shape3D(object):
         
         ## set up points to check
         vpoints = vtk.vtkPoints()
-        for p in points:
-            vpoints.InsertNextPoint(p)
+        map(vpoints.InsertNextPoint,points)
         
         checkPoints = vtk.vtkPolyData()
         checkPoints.SetPoints(vpoints)
@@ -209,14 +243,14 @@ class Shape3D(object):
             self._outPoints = vtk.vtkPolyData()
             self._outPoints.SetPoints(outPoints0)
         
-            self._pointch = True
+            self._pointchecked = True
         
         if n==1:
             return inout[0]
         else:
             return np.array(inout)
     
-    def visualize(self):
+    def visualize(self, eig=False, axwidg=False):
         """ 
             Use VTK to visualize the geometry and 
             points if points have been checked 
@@ -224,7 +258,7 @@ class Shape3D(object):
         
         ## shape mapper, actor
         shapeMapper = vtk.vtkPolyDataMapper()
-        shapeMapper.SetInputConnection(self._reader.GetOutputPort())
+        shapeMapper.SetInput(self.Surf)
 
         shapeActor = vtk.vtkActor()
         shapeActor.SetMapper(shapeMapper)
@@ -234,7 +268,7 @@ class Shape3D(object):
         useinpoints = 0
         useoutpoints = 0
         
-        if self._pointch and self._inPoints.GetNumberOfPoints() > 0:
+        if self._pointchecked and self._inPoints.GetNumberOfPoints() > 0:
             useinpoints=1
             
             inverteces = vtk.vtkVertexGlyphFilter()
@@ -250,7 +284,7 @@ class Shape3D(object):
             inpointsActor.GetProperty().SetColor(0, 0, 1)
             inpointsActor.GetProperty().SetOpacity(0.75)    
 
-        if self._pointch and self._outPoints.GetNumberOfPoints() > 0:
+        if self._pointchecked and self._outPoints.GetNumberOfPoints() > 0:
             useoutpoints=1
             
             outverteces = vtk.vtkVertexGlyphFilter()
@@ -265,7 +299,97 @@ class Shape3D(object):
             outpointsActor.GetProperty().SetPointSize(5)
             outpointsActor.GetProperty().SetColor(1, 0, 0)
             outpointsActor.GetProperty().SetOpacity(0.1)    
-    
+            
+        ## eigenvector mappers, actors
+        if eig:
+            ## major axis
+            cylSource1 = vtk.vtkCylinderSource()
+            cylSource1.SetCenter(0,0,0)
+            h1 = self._eigval[0] / max(self._eigval)
+            cylSource1.SetHeight(h1)
+            cylSource1.SetRadius(.05)
+            cylMapper1 = vtk.vtkPolyDataMapper()
+            cylMapper1.SetInput(cylSource1.GetOutput())
+            
+            eig1Actor = vtk.vtkActor()
+            eig1Actor.SetMapper(cylMapper1)
+            eig1Actor.GetProperty().SetColor(1,0,0)
+            eig1Actor.GetProperty().SetOpacity(.5)
+            
+            ## find rotation axis and angle
+            rax1 = np.cross((0,1,0), self._eigvec[0])
+            rang1 = np.arccos(self._eigvec[0][1]) * 180 / np.pi
+            
+            tfx1 = vtk.vtkTransform()
+            tfx1.PostMultiply()
+            tfx1.RotateWXYZ(rang1, rax1)
+            # tfx1.Translate(self._eigvec[0] * h1/2)
+            tfx1.Translate(self.CoM)
+            
+            eig1Actor.SetUserTransform(tfx1)
+            
+            ## middle axis
+            cylSource2 = vtk.vtkCylinderSource()
+            cylSource2.SetCenter(0,0,0)
+            h2 = self._eigval[1] / max(self._eigval)
+            cylSource2.SetHeight(h2)
+            cylSource2.SetRadius(.05)
+            cylMapper2 = vtk.vtkPolyDataMapper()
+            cylMapper2.SetInput(cylSource2.GetOutput())
+            
+            eig2Actor = vtk.vtkActor()
+            eig2Actor.SetMapper(cylMapper2)
+            eig2Actor.GetProperty().SetColor(0,1,0)
+            eig2Actor.GetProperty().SetOpacity(.5)
+
+            
+            ## find rotation axis and angle
+            rax2 = np.cross((0,1,0), self._eigvec[1])
+            rang2 = np.arccos(self._eigvec[1][1]) * 180 / np.pi
+            
+            tfx2 = vtk.vtkTransform()
+            tfx2.PostMultiply()
+            tfx2.RotateWXYZ(rang2, rax2)
+            # tfx2.Translate(self._eigvec[1] * h2/2)
+            tfx2.Translate(self.CoM)
+
+            
+            eig2Actor.SetUserTransform(tfx2)
+            
+            ## minor axis
+            cylSource3 = vtk.vtkCylinderSource()
+            cylSource3.SetCenter(0,0,0)
+            h3 = self._eigval[2] / max(self._eigval)
+            cylSource3.SetHeight(h3)
+            cylSource3.SetRadius(.05)
+            cylMapper3 = vtk.vtkPolyDataMapper()
+            cylMapper3.SetInput(cylSource3.GetOutput())
+            
+            eig3Actor = vtk.vtkActor()
+            eig3Actor.SetMapper(cylMapper3)
+            eig3Actor.GetProperty().SetColor(0,0,1)
+            eig3Actor.GetProperty().SetOpacity(.5)
+            
+            rax3 = np.cross((0,1,0),self._eigvec[2])
+            rang3 = np.arccos(self._eigvec[2][1]) * 180 / np.pi
+            
+            tfx3 = vtk.vtkTransform()
+            tfx3.PostMultiply()
+            tfx3.RotateWXYZ(rang3, rax3)
+            # tfx3.Translate(self._eigvec[2] * h3/2)
+            tfx3.Translate(self.CoM)
+            
+            eig3Actor.SetUserTransform(tfx3)
+            
+            
+        ## add axes widget
+        if axwidg:
+            axes = vtk.vtkAxesActor()
+            widget = vtk.vtkOrientationMarkerWidget()
+            widget.SetOutlineColor(0.9300, 0.5700, 0.1300)
+            widget.SetOrientationMarker(axes)
+
+
         ## renderer, render window, interactor
         renderer = vtk.vtkRenderer()
         renderWindow = vtk.vtkRenderWindow()
@@ -273,6 +397,12 @@ class Shape3D(object):
     
         renderWindow.AddRenderer(renderer)
         interactor.SetRenderWindow(renderWindow)
+
+        if axwidg:
+            widget.SetInteractor(interactor)
+            widget.SetViewport(0.0, 0.0, 0.4, 0.4)
+            widget.SetEnabled(1)
+            widget.InteractiveOn()
     
         ## add actors
         renderer.AddActor(shapeActor)
@@ -280,6 +410,10 @@ class Shape3D(object):
             renderer.AddActor(inpointsActor)
         if useoutpoints:
             renderer.AddActor(outpointsActor)
+        if eig:
+            renderer.AddActor(eig1Actor)
+            renderer.AddActor(eig2Actor)
+            renderer.AddActor(eig3Actor)
             
         renderer.SetBackground(0,0,0)
     
