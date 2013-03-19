@@ -177,7 +177,16 @@ class Shape3D(object):
             print '\t\t ', self._eigvec[1]
             print '\t\t ', self._eigvec[2]
         
+    def writeSTL(self, fn):
+        """ write surface to stl """
         
+        writer = vtk.vtkSTLWriter()
+        writer.SetFileName(fn)
+        writer.SetInputConnection(self.Surf.GetOutputPort())
+        write.Update()
+        writer.Write()
+        
+        print "Wrote " + fn
 
     def _update_q(self):
         self._bounds = self.Surf.GetBounds()
