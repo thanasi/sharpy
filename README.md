@@ -1,10 +1,12 @@
 sharpy 0.5
 ==================
 
+[https://github.com/thanasi/sharpy]
+
 Expand a 3D surface as spherical harmonics Ylm using Monte Carlo integration
 
 ####Requirements:
-1. python (dev using python3)
+1. python (dev using python2.7)
 2. vtk with python bindings
 
 ####Input File Formats Supported:
