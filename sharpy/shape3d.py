@@ -158,6 +158,8 @@ class Shape3D(object):
     def _calc_mass_prop(self):
         """
         calculate mass, center of mass, and moment of inertia of mesh
+        algorithm taken directly from:
+            http://www.geometrictools.com/Documentation/PolyhedralMassProperties.pdf
             
         """
         
