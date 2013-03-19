@@ -69,7 +69,7 @@ class Shape3D(object):
         
     """
     
-    def __init__(self, fn, clean=True, mass=True, align=True):
+    def __init__(self, fn, clean=True, simp=False, mass=True, align=True):
         
         if not os.path.exists(fn):
             raise IOError("input file does not exists")
@@ -80,12 +80,15 @@ class Shape3D(object):
         self._centered = False
         self._aligned = False
         self._cleaned = False
+        self._simp = False
         self._pointchecked = False
         self._pointcloudgen = False
         
         self.Surf = None
-        self.nFaces = None
+        self.nFaces = 0
+        self.nPoints = 0
         self.PointCloud = None
+        self.bounds = []
 
         self.mass = 0
         self.CoM = np.zeros(3)
@@ -100,7 +103,11 @@ class Shape3D(object):
             self._load_stl()
             
             if clean:
-                self._clean_dup_points()
+                tol = TOL
+                if simp:
+                    tol = 1e-1
+                    self._simp=True
+                self._clean_dup_points(tol)
             
             if mass:
                 print 'calculating mass properties'
@@ -120,6 +127,62 @@ class Shape3D(object):
             
         else:
             raise ImportError("Shape3D cannot currently load %s files" % ext)
+            
+    def reload(self, clean=False, simp=False, mass=False, align=False):
+        """
+        reload the surface from file, overwriting any changes made
+        
+        """
+        self._loaded = False
+        self._centered = False
+        self._aligned = False
+        self._cleaned = False
+        self._simp = False
+        self._pointchecked = False
+        self._pointcloudgen = False
+        
+        self.Surf = None
+        self.nFaces = 0
+        self.nPoints = 0
+        self.PointCloud = None
+        self.bounds = []
+
+        self.mass = 0
+        self.CoM = np.zeros(3)
+        self.inertia = np.zeros((3,3))
+        
+        self._eigval = None
+        self._eigvec = None
+        
+        if clean:
+            tol = TOL
+            if simp:
+                tol = 1e-1
+                self._simp=True
+            self._clean_dup_points(tol)
+        
+        if mass:
+            print 'calculating mass properties'
+            self._calc_mass_prop()
+            # print self.inertia
+            # print self._eigvec
+            
+        if align:
+            ## works perfectly if you run it twice. what can I say?
+            print 'aligning principal moments to x,y,z axes'
+            self._align_axes()
+            self._align_axes()
+            print 'aligned inertia tensor to coordinate system'
+            print 'new eigenvectors:', self._eigvec[0]
+            print '\t\t ', self._eigvec[1]
+            print '\t\t ', self._eigvec[2]
+        
+        
+
+    def _update_q(self):
+        self._bounds = self.Surf.GetBounds()
+        self.nFaces = self.Surf.GetNumberOfCells()
+        self.nPoints = self.Surf.GetNumberOfPoints()
 
     def _load_stl(self):
         """" Load an STL file into the Shape3D object """
@@ -131,16 +194,15 @@ class Shape3D(object):
         
         ## set up surface
         self.Surf = reader.GetOutput()
-        self.nFaces = self.Surf.GetNumberOfCells()
-        self._bounds = self.Surf.GetBounds()
 
+        self._update_q()
         self._loaded = True
         
-    def _clean_dup_points(self):
-        """ Remove duplicate points within TOL in the loaded surface"""     
+    def _clean_dup_points(self, tol=TOL):
+        """ Remove duplicate points within tol in the loaded surface"""     
         
         scrubber = vtk.vtkCleanPolyData()
-        scrubber.SetTolerance(TOL)
+        scrubber.SetTolerance(tol)
         scrubber.SetInput(self.Surf)
         scrubber.Update()
         
@@ -150,6 +212,7 @@ class Shape3D(object):
         if N2<N1:
             print "Removed %d duplicate points" % (N1-N2)
             self.Surf = scrubber.GetOutput()
+            self._update_q()
         else:
             print "No duplicate points within tolerance"
 
@@ -256,7 +319,7 @@ class Shape3D(object):
         txfPoly.Update()
         
         self.Surf = txfPoly.GetOutput()
-        self._bounds = self.Surf.GetBounds()
+        self._update_q()
         
         self._calc_mass_prop()
         
@@ -309,7 +372,7 @@ class Shape3D(object):
         txfPoly.Update()
         
         self.Surf = txfPoly.GetOutput()
-        self._bounds = self.Surf.GetBounds()
+        self._update_q()
     
         ## print 'aligned surface. recalculating eigenvectors of inertia tensor'
         self._calc_mass_prop()
