@@ -113,6 +113,10 @@ class Shape3D(object):
                 print 'aligning principal moments to x,y,z axes'
                 self._align_axes()
                 self._align_axes()
+                print 'aligned inertia tensor to coordinate system'
+                print 'new eigenvectors:', self._eigvec[0]
+                print '\t\t ', self._eigvec[1]
+                print '\t\t ', self._eigvec[2]
             
         else:
             raise ImportError("Shape3D cannot currently load %s files" % ext)
@@ -305,11 +309,11 @@ class Shape3D(object):
         self.Surf = txfPoly.GetOutput()
         self._bounds = self.Surf.GetBounds()
     
-        print 'aligned surface. recalculating eigenvectors of inertia tensor'
+        ## print 'aligned surface. recalculating eigenvectors of inertia tensor'
         self._calc_mass_prop()
         
-        print "updated eigenvectors"
-        print self._eigvec
+        ## print "updated eigenvectors"
+        ## print self._eigvec
         ## print self.inertia
         
         self._aligned = True
