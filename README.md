@@ -1,7 +1,7 @@
 sharpy 0.5
 ==================
 
-[https://github.com/thanasi/sharpy]
+[https://github.com/thanasi/sharpy](https://github.com/thanasi/sharpy)
 
 Expand a 3D surface as spherical harmonics Ylm using Monte Carlo integration
 
