@@ -1,4 +1,4 @@
-sharpy 0.2
+sharpy 0.5
 ==================
 
 Expand a 3D surface as spherical harmonics Ylm using Monte Carlo integration
@@ -18,12 +18,13 @@ Expand a 3D surface as spherical harmonics Ylm using Monte Carlo integration
 4. ~~Implement as library + class~~ (sharpy/shape3d.py, testscripts/testSTLPoints2)
 5. ~~Calculate moment of inertia tensor + diagonalize~~
 	- speed up calculation for large N (parallelize or use numpy tricks. or make a c module)
-6. Visualize eigenvectors of moment of inertia tensor
-7. STL Registration along principal axes of moment of inertia tensor:
+6. ~~Visualize eigenvectors of moment of inertia tensor~~
+7. ~~STL Registration along principal axes of moment of inertia tensor:~~
 	- center of mass at (0,0,0)
 	- x = major axis
 	- y = middle
 	- z = minor axis
+	**this is still slow/fails for meshes with many points
 8. Monte Carlo integral against different Ylm to get eigenvalues
 9. Calculate SphericalHarmonicTransform
 10. Calculate reverse transform
