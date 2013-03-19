@@ -24,9 +24,10 @@ Expand a 3D surface as spherical harmonics Ylm using Monte Carlo integration
 	- x = major axis
 	- y = middle
 	- z = minor axis
-	**this is still slow/fails for meshes with many points
-8. Monte Carlo integral against different Ylm to get eigenvalues
-9. Calculate SphericalHarmonicTransform
-10. Calculate reverse transform
-11. Visualize decomposition (eigenvector YLM sized based on eigenvalue)
-12. Visualize reverse transform and compare to STL
+	- **this is still slow/fails for meshes with many points
+8. ~~Write surface to output STL~~
+9. Monte Carlo STintegral against different Ylm to get eigenvalues
+10. Calculate SphericalHarmonicTransform
+11. Calculate reverse transform
+12. Visualize decomposition (eigenvector YLM sized based on eigenvalue)
+13. Visualize reverse transform and compare to STL
