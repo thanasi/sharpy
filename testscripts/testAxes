@@ -2,7 +2,7 @@
 
 from sharpy.shape3d import Shape3D
 
-fn = "../STL/3.6mmJack.stl"
+fn = "../STL/Jack3.6mm.stl"
 
 sh = Shape3D(fn)
 
