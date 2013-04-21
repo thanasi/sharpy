@@ -20,9 +20,7 @@ if __name__ == '__main__':
 
      cR = np.sqrt((points**2).sum(1)).max()
      
-     ## these values come out rather strange for the jacks. not what Meshlab gets
      vol = shape.volume
      sa = shape.surfarea
      
-
      sys.stdout.write('%s,%3.3f,%4.3f,%4.3f,%4.3f\n' % (name,cR,vol,sa,cR**3/vol))
