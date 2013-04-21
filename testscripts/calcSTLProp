@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+import sys
+import os
+import numpy as np
+from sharpy.shape3d import Shape3D
+
+np.set_printoptions(precision=3)
+
+if __name__ == '__main__':
+    
+     f = sys.argv[1]
+     
+     name = '.'.join(f.split('.')[:-1])
+
+     shape = Shape3D(f,clean=False,mass=True,align=False,verbose=False)
+
+     points = shape.get_points()
+     
+     CoM = points.mean(0)
+
+     cR = np.sqrt((points**2).sum(1)).max()
+     
+     ## these values come out rather strange for the jacks. not what Meshlab gets
+     vol = shape.volume
+     sa = shape.surfarea
+     
+
+     sys.stdout.write('%s,%3.3f,%4.3f,%4.3f,%4.3f\n' % (name,cR,vol,sa,cR**3/vol))

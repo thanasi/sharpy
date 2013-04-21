@@ -25,7 +25,7 @@ Z = 2
 
 ## subexpressions for integrals
 def subexpr(w):
-
+    
     f = np.zeros(3)
     g = np.zeros(3)
 
@@ -69,13 +69,20 @@ class Shape3D(object):
         
     """
     
-    def __init__(self, fn, clean=True, simp=False, mass=True, align=True):
-        
-        if not os.path.exists(fn):
-            raise IOError("input file does not exists")
-        
+    def __init__(self, fn, clean=True, simp=False, mass=True, align=True, verbose=True):
+        self._init_vals()
+
         self._filename = fn
+        self.verb = verbose
+
+        self._load(clean, simp, mass, align)
+            
+    def _init_vals(self):
+        """
+        reload the surface from file, overwriting any changes made
         
+        """
+
         self._loaded = False
         self._centered = False
         self._aligned = False
@@ -93,11 +100,19 @@ class Shape3D(object):
         self.mass = 0
         self.CoM = np.zeros(3)
         self.inertia = np.zeros((3,3))
+        self.volume = 0
+        self.surfarea = 0
         
         self._eigval = None
         self._eigvec = None
         
-        ext = np.char.lower(os.path.splitext(fn)[-1])
+    def _load(self, clean=False, simp=False, mass=False, align=False):
+        """ load the mesh """
+
+        if not os.path.exists(self._filename):
+            raise IOError("input file does not exists")
+        
+        ext = np.char.lower(os.path.splitext(self._filename)[-1])
         
         if ext == ".stl":
             self._load_stl()
@@ -110,72 +125,29 @@ class Shape3D(object):
                 self._clean_dup_points(tol)
             
             if mass:
-                print 'calculating mass properties'
+                if self.verb: print 'calculating mass properties'
                 self._calc_mass_prop()
                 # print self.inertia
                 # print self._eigvec
+                self._center()
+                self._calc_geom_prop()
                 
             if align:
                 ## works perfectly if you run it twice. what can I say?
-                print 'aligning principal moments to x,y,z axes'
+                if self.verb: print 'aligning principal moments to x,y,z axes'
                 self._align_axes()
-                self._align_axes()
-                print 'aligned inertia tensor to coordinate system'
-                print 'new eigenvectors:', self._eigvec[0]
-                print '\t\t ', self._eigvec[1]
-                print '\t\t ', self._eigvec[2]
-            
-        else:
-            raise ImportError("Shape3D cannot currently load %s files" % ext)
-            
-    def reload(self, clean=False, simp=False, mass=False, align=False):
-        """
-        reload the surface from file, overwriting any changes made
-        
-        """
-        self._loaded = False
-        self._centered = False
-        self._aligned = False
-        self._cleaned = False
-        self._simp = False
-        self._pointchecked = False
-        self._pointcloudgen = False
-        
-        self.Surf = None
-        self.nFaces = 0
-        self.nPoints = 0
-        self.PointCloud = None
-        self.bounds = []
+                # self._align_axes()
+                if self.verb: print 'aligned inertia tensor to coordinate system'
+                if self.verb: print 'new eigenvectors:', self._eigvec[0]
+                if self.verb: print '\t\t ', self._eigvec[1]
+                if self.verb: print '\t\t ', self._eigvec[2]
 
-        self.mass = 0
-        self.CoM = np.zeros(3)
-        self.inertia = np.zeros((3,3))
-        
-        self._eigval = None
-        self._eigvec = None
-        
-        if clean:
-            tol = TOL
-            if simp:
-                tol = 1e-1
-                self._simp=True
-            self._clean_dup_points(tol)
-        
-        if mass:
-            print 'calculating mass properties'
-            self._calc_mass_prop()
-            # print self.inertia
-            # print self._eigvec
-            
-        if align:
-            ## works perfectly if you run it twice. what can I say?
-            print 'aligning principal moments to x,y,z axes'
-            self._align_axes()
-            self._align_axes()
-            print 'aligned inertia tensor to coordinate system'
-            print 'new eigenvectors:', self._eigvec[0]
-            print '\t\t ', self._eigvec[1]
-            print '\t\t ', self._eigvec[2]
+    def reload(self, clean=False, simp=False, mass=False, align=False):
+        """ reload the mesh """
+
+        self._init_vals()
+        self._load(clean,simp,mass,align)
+
         
     def writeSTL(self, fn):
         """ write surface to stl """
@@ -186,10 +158,10 @@ class Shape3D(object):
         write.Update()
         writer.Write()
         
-        print "Wrote " + fn
+        if self.verb: print "Wrote " + fn
 
     def _update_q(self):
-        self._bounds = self.Surf.GetBounds()
+        self.bounds = self.Surf.GetBounds()
         self.nFaces = self.Surf.GetNumberOfCells()
         self.nPoints = self.Surf.GetNumberOfPoints()
 
@@ -219,13 +191,34 @@ class Shape3D(object):
         N2 = scrubber.GetOutput().GetNumberOfPoints()
         
         if N2<N1:
-            print "Removed %d duplicate points" % (N1-N2)
+            if self.verb: print "Removed %d duplicate points" % (N1-N2)
             self.Surf = scrubber.GetOutput()
             self._update_q()
         else:
-            print "No duplicate points within tolerance"
+            if self.verb: print "No duplicate points within tolerance"
 
         self._cleaned = True   
+
+    def _calc_geom_prop(self):
+        """ calculate volume and surface area of mesh """
+
+        area = 0.0
+        vol = 0.0
+
+        for f in range(self.nFaces):
+            ## get vertices
+            p = map(self.Surf.GetCell(f).GetPoints().GetPoint, range(3))
+            p = np.array(p)
+
+            N = np.cross(p[1]-p[0], p[2]-p[0])
+            g = p.sum(0) / 3.0
+
+            area += (np.sqrt((N**2).sum()) / 2)
+            vol += (np.dot(g,N) / 6)
+
+        self.volume = vol
+        self.surfarea = area
+
         
     def _calc_mass_prop(self):
         """
@@ -278,7 +271,7 @@ class Shape3D(object):
         ## apply weights
         intg *= mult
         
-        ## calc mass
+        ## calc volume (assume constant density, then this is the mass)
         mass = intg[0]
         
         ## calc CoM
@@ -299,7 +292,7 @@ class Shape3D(object):
         
         self.mass = mass
         self.CoM = cm
-        self.inertia = inertia   
+        self.inertia = inertia
         
         # calculate and sort eigenvectors of inertia tensor
         eigval, eigvec = LA.eigh(self.inertia)
@@ -317,7 +310,7 @@ class Shape3D(object):
         center mesh at (0,0,0)
         
         """
-        
+
         txf = vtk.vtkTransform()
         txf.PostMultiply()
         txf.Translate(-1*self.CoM)
@@ -329,9 +322,7 @@ class Shape3D(object):
         
         self.Surf = txfPoly.GetOutput()
         self._update_q()
-        
         self._calc_mass_prop()
-        
         self._centered = True
                       
         
@@ -395,16 +386,16 @@ class Shape3D(object):
     def _generate_pointcloud(self, N=1e5, save=False):
         """ Build an N-point pointcloud representation of the surface """
 
-        x = np.random.uniform(low=self._bounds[0], high=self._bounds[1], size=N)
-        y = np.random.uniform(low=self._bounds[2], high=self._bounds[3], size=N)
-        z = np.random.uniform(low=self._bounds[4], high=self._bounds[5], size=N)
+        x = np.random.uniform(low=self.bounds[0], high=self.bounds[1], size=N)
+        y = np.random.uniform(low=self.bounds[2], high=self.bounds[3], size=N)
+        z = np.random.uniform(low=self.bounds[4], high=self.bounds[5], size=N)
         
         pc = np.array([x,y,z]).T
         
         inbool = self.is_inside(pc,save=save)
         
         self.PointCloud = pc[inbool==1]
-        print sum(inbool)
+        if self.verb: print sum(inbool)
         
         self._pointcloudgen = True
                 
@@ -458,6 +449,15 @@ class Shape3D(object):
             return inout[0]
         else:
             return np.array(inout)
+    
+    
+    
+    def get_points(self):
+        """ get the points contained in the surface file """
+        
+        points = map(self.Surf.GetPoints().GetPoint,range(self.nPoints))
+        
+        return np.array(points)
     
     def visualize(self, eig=False, axwidg=False):
         """ 
