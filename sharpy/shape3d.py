@@ -102,6 +102,7 @@ class Shape3D(object):
         self.inertia = np.zeros((3,3))
         self.volume = 0
         self.surfarea = 0
+        self.face_areas = np.array([])
         
         self._eigval = None
         self._eigvec = None
@@ -204,6 +205,7 @@ class Shape3D(object):
 
         area = 0.0
         vol = 0.0
+        face_areas = []
 
         for f in range(self.nFaces):
             ## get vertices
@@ -213,11 +215,13 @@ class Shape3D(object):
             N = np.cross(p[1]-p[0], p[2]-p[0])
             g = p.sum(0) / 3.0
 
-            area += (np.sqrt((N**2).sum()) / 2)
+            face_areas.append(np.sqrt((N**2).sum()) / 2)
             vol += (np.dot(g,N) / 6)
 
+        self.face_areas = np.array(face_areas))
         self.volume = vol
-        self.surfarea = area
+        self.surfarea = self.face_areas.sum()
+
 
         
     def _calc_mass_prop(self):
