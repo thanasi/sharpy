@@ -16,11 +16,11 @@ if __name__ == '__main__':
 
      points = shape.get_points()
      
-     CoM = points.mean(0)
+     CoM = shape.CoM
 
      cR = np.sqrt((points**2).sum(1)).max()
      
      vol = shape.volume
      sa = shape.surfarea
      
-     sys.stdout.write('%s,%3.3f,%4.3f,%4.3f,%4.3f\n' % (name,cR,vol,sa,cR**3/vol))
+     sys.stdout.write('%s,%3.3f,%4.3f,%4.3f,%4.3f\n' % (name,cR,vol,sa,vol/cR**3))

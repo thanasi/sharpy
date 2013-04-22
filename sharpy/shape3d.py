@@ -149,13 +149,13 @@ class Shape3D(object):
         self._load(clean,simp,mass,align)
 
         
-    def writeSTL(self, fn):
+    def write_stl(self, fn):
         """ write surface to stl """
         
         writer = vtk.vtkSTLWriter()
         writer.SetFileName(fn)
-        writer.SetInputConnection(self.Surf.GetOutputPort())
-        write.Update()
+        writer.SetInput(self.Surf)
+        writer.Update()
         writer.Write()
         
         if self.verb: print "Wrote " + fn
