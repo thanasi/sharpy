@@ -218,7 +218,7 @@ class Shape3D(object):
             face_areas.append(np.sqrt((N**2).sum()) / 2)
             vol += (np.dot(g,N) / 6)
 
-        self.face_areas = np.array(face_areas))
+        self.face_areas = np.array(face_areas)
         self.volume = vol
         self.surfarea = self.face_areas.sum()
 
