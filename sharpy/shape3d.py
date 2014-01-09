@@ -1,5 +1,5 @@
 ##############################
-## 
+##
 ## sharpy.shape3d
 ## 
 ## Author: A. Athanassiadis
@@ -155,7 +155,7 @@ class Shape3D(object):
         
         writer = vtk.vtkSTLWriter()
         writer.SetFileName(fn)
-        writer.SetInput(self.Surf)
+        writer.SetInputData(self.Surf)
         writer.Update()
         writer.Write()
         
@@ -185,7 +185,7 @@ class Shape3D(object):
         
         scrubber = vtk.vtkCleanPolyData()
         scrubber.SetTolerance(tol)
-        scrubber.SetInput(self.Surf)
+        scrubber.SetInputData(self.Surf)
         scrubber.Update()
         
         N1 = self.Surf.GetNumberOfPoints()
@@ -320,7 +320,7 @@ class Shape3D(object):
         txf.Translate(-1*self.CoM)
         
         txfPoly = vtk.vtkTransformPolyDataFilter()
-        txfPoly.SetInput(self.Surf)
+        txfPoly.SetInputData(self.Surf)
         txfPoly.SetTransform(txf)
         txfPoly.Update()
         
@@ -371,7 +371,7 @@ class Shape3D(object):
         txf.RotateWXYZ(rang2,rax2)
         
         txfPoly = vtk.vtkTransformPolyDataFilter()
-        txfPoly.SetInput(self.Surf)
+        txfPoly.SetInputData(self.Surf)
         txfPoly.SetTransform(txf)
         txfPoly.Update()
         
@@ -423,8 +423,8 @@ class Shape3D(object):
         
         ## set up point checking object
         pointChecker = vtk.vtkSelectEnclosedPoints()
-        pointChecker.SetInput(checkPoints)
-        pointChecker.SetSurface(self.Surf)
+        pointChecker.SetInputData(checkPoints)
+        pointChecker.SetSurfaceData(self.Surf)
         pointChecker.Update()
         
         ## check the status for each point
@@ -471,7 +471,7 @@ class Shape3D(object):
         
         ## shape mapper, actor
         shapeMapper = vtk.vtkPolyDataMapper()
-        shapeMapper.SetInput(self.Surf)
+        shapeMapper.SetInputData(self.Surf)
 
         shapeActor = vtk.vtkActor()
         shapeActor.SetMapper(shapeMapper)
@@ -485,7 +485,7 @@ class Shape3D(object):
             useinpoints=1
             
             inverteces = vtk.vtkVertexGlyphFilter()
-            inverteces.AddInput(self._inPoints)
+            inverteces.AddInputData(self._inPoints)
             inverteces.Update()
     
             inpointsMapper = vtk.vtkPolyDataMapper()
@@ -501,7 +501,7 @@ class Shape3D(object):
             useoutpoints=1
             
             outverteces = vtk.vtkVertexGlyphFilter()
-            outverteces.AddInput(self._outPoints)
+            outverteces.AddInputData(self._outPoints)
             outverteces.Update()
     
             outpointsMapper = vtk.vtkPolyDataMapper()
@@ -522,7 +522,7 @@ class Shape3D(object):
             cylSource1.SetHeight(h1)
             cylSource1.SetRadius(.05)
             cylMapper1 = vtk.vtkPolyDataMapper()
-            cylMapper1.SetInput(cylSource1.GetOutput())
+            cylMapper1.SetInputData(cylSource1.GetOutput())
             
             eig1Actor = vtk.vtkActor()
             eig1Actor.SetMapper(cylMapper1)
@@ -548,7 +548,7 @@ class Shape3D(object):
             cylSource2.SetHeight(h2)
             cylSource2.SetRadius(.05)
             cylMapper2 = vtk.vtkPolyDataMapper()
-            cylMapper2.SetInput(cylSource2.GetOutput())
+            cylMapper2.SetInputData(cylSource2.GetOutput())
             
             eig2Actor = vtk.vtkActor()
             eig2Actor.SetMapper(cylMapper2)
@@ -576,7 +576,7 @@ class Shape3D(object):
             cylSource3.SetHeight(h3)
             cylSource3.SetRadius(.05)
             cylMapper3 = vtk.vtkPolyDataMapper()
-            cylMapper3.SetInput(cylSource3.GetOutput())
+            cylMapper3.SetInputData(cylSource3.GetOutput())
             
             eig3Actor = vtk.vtkActor()
             eig3Actor.SetMapper(cylMapper3)
